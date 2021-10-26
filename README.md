@@ -84,7 +84,7 @@ publisher.publish(
 
 Usage with consuming:
 ```python
-from classic.messaging_kombu import BrokerScheme, KombuConsumer
+from classic.messaging_kombu import BrokerScheme, KombuConsumer, MessageHandler
 from kombu import Exchange, Queue, Connection
 
 
@@ -92,9 +92,18 @@ class SomeSerice:
     def handle_message(self, message):
         print(message)
 
+        
+class CustomHandler(MessageHandler):
+    
+    def handle(self, message, body):
+        print(body)
+        
+        message.ack()
+
 
 broker_scheme = BrokerScheme(
-    Queue('queue1', Exchange('some')),
+    Queue('queue1', Exchange('exchange1')),
+    Queue('queue2', Exchange('exchange2')),
 )
 
 connection = Connection('amqp://localhost:5672/')
@@ -105,6 +114,9 @@ consumer = KombuConsumer(
 )
 
 service = SomeSerice()
+handler = CustomHandler()
+
 consumer.register_function(service.handle_message, 'queue1')
+consumer.register_handler(handler, 'queue2')
 
 ```
