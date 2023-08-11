@@ -3,7 +3,7 @@ import logging
 from typing import Callable, Any, Iterable
 from collections import defaultdict
 
-from kombu import Connection
+from kombu import Connection, Message
 from kombu.mixins import ConsumerMixin
 
 from classic.components import component
@@ -59,13 +59,12 @@ class KombuConsumer(ConsumerMixin):
         return consumers
 
     @staticmethod
-    def on_message(body, message, handler):
+    def on_message(body: Any, message: Message, handler: MessageHandler):
+        logger.debug(f'Trying to call {handler}')
         try:
-            logger.info(f'Trying to call {handler}')
-
             handler.handle(message, body)
         except Exception as error:
-            logger.error(error)
+            logger.exception(error)
 
     def run(self, *args, **kwargs):
         logger.info('Worker started')

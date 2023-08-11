@@ -26,7 +26,12 @@ class SimpleMessageHandler(MessageHandler):
         if not self.late_ack:
             message.ack()
 
-        self.function(**body)
-
-        if self.late_ack:
-            message.ack()
+        try:
+            self.function(**body)
+        except Exception as exc:
+            if self.late_ack:
+                message.reject()
+            raise exc
+        else:
+            if self.late_ack:
+                message.ack()

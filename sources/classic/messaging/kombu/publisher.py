@@ -1,10 +1,9 @@
 from typing import Optional, Dict, Any, Callable
-import threading
 
 import attr
 
 from classic.components import component
-from classic.messaging import Message, Publisher
+from classic.messaging.core import Message, Publisher as BasePublisher
 
 from kombu import Connection
 from kombu.pools import producers
@@ -17,7 +16,7 @@ ProducerParamsStrategy = Callable[[str], ProducerParams]
 
 
 @component
-class KombuPublisher(Publisher):
+class Publisher(BasePublisher):
     connection: Connection
     scheme: BrokerScheme
     params_for_target: Optional[ProducerParamsStrategy] = None
@@ -27,27 +26,21 @@ class KombuPublisher(Publisher):
         super().__attrs_post_init__()
 
         self.pool = producers[self.connection]
-        self.local = threading.local()
 
         if self.params_for_target is None:
             self.params_for_target = self.params_from_mapping_or_scheme
 
-    @property
-    def producer(self):
-        if not hasattr(self.local, 'producer'):
-            self.local.producer = self.pool.acquire(block=True)
-        return self.local.producer
-
-    def on_finish(self):
-        self.producer.release()
-        del self.local.producer
-
     def publish(self, *messages: Message):
-        for message in messages:
-            self.producer.publish(
-                message.body,
-                **self.params_for_target(message.target)
-            )
+        producer = self.pool.acquire(block=True)
+        try:
+            for message in messages:
+                producer.publish(
+                    message.body,
+                    **self.params_for_target(message.target)
+                )
+        except Exception:
+            producer.release()
+            raise
 
     def params_from_mapping(self, target: str) -> ProducerParams:
         return self.messages_params.get(target)

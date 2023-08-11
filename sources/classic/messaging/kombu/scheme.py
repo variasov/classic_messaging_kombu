@@ -1,4 +1,10 @@
-from backports.cached_property import cached_property
+import sys
+
+if sys.version < "3.8":
+    from backports.cached_property import cached_property
+else:
+    from functools import cached_property
+
 from kombu import Queue, Connection
 
 
